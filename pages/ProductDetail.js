@@ -1,7 +1,6 @@
 "use client"; //this is a client component
 import React, { useState, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation';
-import { baseURL } from '../app/components/sharedFunctions'
 import axios from 'axios';
 import { Typography, Grid, Box } from '@mui/material'
 import { BiArrowBack } from 'react-icons/bi'
@@ -14,7 +13,7 @@ function ProductDetail() {
     const [productData, setProductData] = useState({})
 
     const fetchProduct = async () => {
-        const { data } = await axios.get(`${baseURL}/products/${id}`);
+        const { data } = await axios.get(`https://dummyjson.com/products/${id}`);
         setProductData(data)
     }
 

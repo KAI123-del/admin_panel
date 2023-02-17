@@ -11,5 +11,3 @@ export const errorTheme = {
     theme: "colored",
 }
 
-// BASE URL
-export const baseURL = 'https://dummyjson.com'

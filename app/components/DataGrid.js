@@ -8,7 +8,7 @@ import axios, { all } from 'axios';
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Button, Grid, Typography, Modal, TextField, Box } from '@mui/material';
-import { errorTheme, baseURL } from './sharedFunctions';
+import { errorTheme } from './sharedFunctions';
 import { useRouter } from 'next/navigation';
 
 function DataGrid() {
@@ -45,7 +45,7 @@ function DataGrid() {
 
   // update state for category filter
   const categoryFilterHandler = async (x) => {
-    const { data } = await axios.get(`${baseURL}/products/category/${x}`);
+    const { data } = await axios.get(`https://dummyjson.com/products/category/${x}`);
     const slicedData = data.products.slice(0, 10)
 
     // to set the filter
@@ -82,7 +82,7 @@ function DataGrid() {
     // error handling before sending the post request
     if (newProductData.title.length > 1 && newProductData.brand.length > 1 && newProductData.category.length > 1 && newProductData.discount.length > 1 && newProductData.price.length > 1 && newProductData.stock.length > 1 && newProductData.rating.length > 1) {
       setRevealForm(false)
-      const { data } = await axios.post(`${baseURL}/products/add`, newProductData);
+      const { data } = await axios.post(`https://dummyjson.com/products/add`, newProductData);
       allProducts?.unshift(data)
       toast.success("Product added successfully !!!", errorTheme)
 
@@ -96,7 +96,7 @@ function DataGrid() {
   // search Product by NAME,BRAND,CATEGORY:
   const searchByProductHandler = async (x) => {
     setSearchProduct(x)
-    const { data } = await axios.get(`${baseURL}/products/search?q=${x}`);
+    const { data } = await axios.get(`https://dummyjson.com/products/search?q=${x}`);
 
     // ADD CHECK IF DATA IS EMPTY
 
@@ -108,7 +108,7 @@ function DataGrid() {
 
   // FUNCTION TO FETCH ALL PRODUCT DATA
   const getAllProducts = async () => {
-    const { data } = await axios.get(`${baseURL}/products`);
+    const { data } = await axios.get(`https://dummyjson.com/products`);
     const slicedData = data.products.slice(0, 10)
     setAllProducts(slicedData)
     setProductSuccess(true)
@@ -119,7 +119,7 @@ function DataGrid() {
 
   // delete a product
   const deleteProductHandler = async (id) => {
-    const { data } = await axios.get(`${baseURL}/products/${id}`);
+    const { data } = await axios.get(`https://dummyjson.com/products/${id}`);
     if (data) {
       const removedData = filterData.filter((x) => x.id !== id);
       setFilterData(removedData);
