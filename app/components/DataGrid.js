@@ -2,37 +2,39 @@
 import React, { useState, useEffect } from 'react'
 import { FiSearch } from 'react-icons/fi'
 import { MdModeEditOutline, MdDelete } from 'react-icons/md'
+import { BsEyeFill } from 'react-icons/bs'
 import { RxCross2 } from 'react-icons/rx';
-import axios from 'axios';
+import axios, { all } from 'axios';
 import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css"
+import "react-toastify/dist/ReactToastify.css";
+import { Button, Grid, Typography, Modal, TextField, Box } from '@mui/material';
+import { errorTheme, baseURL } from './sharedFunctions';
+import { useRouter } from 'next/navigation';
 
 function DataGrid() {
 
   const [revealForm, setRevealForm] = useState(false);
   const [allProducts, setAllProducts] = useState();
   const [filterData, setFilterData] = useState();
-  const [searchProduct, setSearchProduct] = useState()
+  const [searchProduct, setSearchProduct] = useState('');
+  const [productSuccess, setProductSuccess] = useState(false)
   const [newProductData, setNewProductData] = useState({
     title: '',
     brand: '',
     category: '',
-    discount: '',
+    discountPercentage: '',
     price: '',
     stock: '',
     rating: ''
   })
+  const [editProductId, setEditProductId] = useState({})
+  const [open, setOpen] = useState(false)
 
-  // creating a toast pop theme
-  const errorTheme = {
-    position: "top-right",
-    autoClose: 2000,
-    hideProgressBar: false,
-    closeOnClick: true,
-    pauseOnHover: true,
-    draggable: true,
-    progress: undefined,
-    theme: "colored",
+
+  // for navigating to single product page
+  const router = useRouter()
+  const viewProductHandler = (id) => {
+    router.push(`/ProductDetail?id=${id}`)
   }
 
 
@@ -42,16 +44,27 @@ function DataGrid() {
   }
 
   // update state for category filter
-  const categoryFilterHandler = (x) => {
-    const filterData = allProducts?.filter((y) => y.category === x);
-    setFilterData(filterData)
+  const categoryFilterHandler = async (x) => {
+    const { data } = await axios.get(`${baseURL}/products/category/${x}`);
+    const slicedData = data.products.slice(0, 10)
+
+    // to set the filter
+    setFilterData(slicedData)
+
   }
+
+  // close edit modal
+  const handleClose = () => {
+    setOpen(false)
+  }
+
 
   // update state for brand filter
   const brandFilterHandler = (x) => {
     const filterData = allProducts?.filter((y) => y.brand === x);
     setFilterData(filterData)
   }
+
 
   // filter based on brand 
   const checkDuplicateBrand = allProducts?.map(o => o.brand);
@@ -62,12 +75,14 @@ function DataGrid() {
   const checkDuplicateCategory = allProducts?.map(o => o.category);
   const filteredCategory = allProducts?.filter(({ category }, index) => !checkDuplicateCategory?.includes(category, index + 1))
 
+
+
   // add a new product
   const newProductHandler = async () => {
     // error handling before sending the post request
     if (newProductData.title.length > 1 && newProductData.brand.length > 1 && newProductData.category.length > 1 && newProductData.discount.length > 1 && newProductData.price.length > 1 && newProductData.stock.length > 1 && newProductData.rating.length > 1) {
       setRevealForm(false)
-      const { data } = await axios.post('https://dummyjson.com/products/add', newProductData);
+      const { data } = await axios.post(`${baseURL}/products/add`, newProductData);
       allProducts?.unshift(data)
       toast.success("Product added successfully !!!", errorTheme)
 
@@ -78,38 +93,52 @@ function DataGrid() {
   }
 
 
-
   // search Product by NAME,BRAND,CATEGORY:
-  const searchByProductHandler = (x) => {
+  const searchByProductHandler = async (x) => {
     setSearchProduct(x)
-    if (typeof window !== 'undefined') {
-      let filter, table, tr, td, i, txtValue;
-      filter = x.toUpperCase();
-      table = document.getElementById("myTable");
-      tr = table.getElementsByTagName("tr");
-      for (i = 0; i < tr.length; i++) {
-        td = tr[i].getElementsByTagName("td")[0];
-        if (td) {
-          txtValue = td.textContent || td.innerText;
-          if (txtValue.toUpperCase().indexOf(filter) > -1) {
-            tr[i].style.display = "";
-          } else {
-            tr[i].style.display = "none";
-          }
-        }
-      }
-    }
-  }
+    const { data } = await axios.get(`${baseURL}/products/search?q=${x}`);
 
-  // FUNCTION TO FETCH ALL PRODUCT DATA
-  const getAllProducts = async () => {
-    const { data } = await axios.get('https://dummyjson.com/products');
+    // ADD CHECK IF DATA IS EMPTY
+
     const slicedData = data.products.slice(0, 10)
-    setAllProducts(slicedData)
 
     // to set the filter
     setFilterData(slicedData)
   }
+
+  // FUNCTION TO FETCH ALL PRODUCT DATA
+  const getAllProducts = async () => {
+    const { data } = await axios.get(`${baseURL}/products`);
+    const slicedData = data.products.slice(0, 10)
+    setAllProducts(slicedData)
+    setProductSuccess(true)
+
+    // to set the filter
+    setFilterData(slicedData)
+  }
+
+  // delete a product
+  const deleteProductHandler = async (id) => {
+    const { data } = await axios.get(`${baseURL}/products/${id}`);
+    if (data) {
+      const removedData = filterData.filter((x) => x.id !== id);
+      setFilterData(removedData);
+      toast.success(`product with id : ${id} is deleted successfully !!!`, errorTheme)
+    } else {
+      toast.warning(`Something went wrong !!!`, errorTheme)
+    }
+
+  }
+
+  // Edit/update product details
+  const updateProductHandler = async () => {
+    allProducts.unshift(editProductId)
+    setFilterData(allProducts)
+    setOpen(false)
+    toast.success(`product with id : ${editProductId.id} is Updated successfully !!!`, errorTheme)
+  }
+
+
 
   // call product data at the mount 
   useEffect(() => {
@@ -142,7 +171,8 @@ function DataGrid() {
             <input value={searchProduct} onChange={(e) => searchByProductHandler(e.target.value)} className='outline-none font-josefinRegular text-[1.2rem] pt-2 text-[#0a2351]' placeholder='Enter Product Name' />
           </div>
           <div className='flex  space-x-6 pr-[1rem] '>
-            <select onChange={(e) => brandFilterHandler(e.target.value)} defaultValue={'select a brand'} name="brand" id="brand" className='border p-[0.5rem] outline-none border-gray-500 rounded-lg w-[10rem]'>
+            <select defaultValue="select By Brand" onChange={(e) => brandFilterHandler(e.target.value)} name="brand" id="brand" className='border p-[0.5rem] outline-none border-gray-500 rounded-lg w-[12rem]'>
+              <option value="none" selected disabled hidden>Search By Brand </option>
               {
                 filteredBrands?.map((x, index) =>
                   <option key={index} value={x.brand}>{x.brand}</option>
@@ -150,7 +180,8 @@ function DataGrid() {
               }
             </select>
 
-            <select onChange={(e) => categoryFilterHandler(e.target.value)} defaultValue={'select a category'} name="category" id="category" className='border p-[0.5rem] outline-none border-gray-500 rounded-lg w-[10rem]'>
+            <select defaultValue="select By Category" onChange={(e) => categoryFilterHandler(e.target.value)} name="category" id="category" className='border p-[0.5rem] outline-none border-gray-500 rounded-lg w-[12rem]'>
+              <option value="none" selected disabled hidden>Search By Category </option>
               {
                 filteredCategory?.map((x, index) =>
                   <option key={index} value={x.category}>{x.category}</option>
@@ -162,60 +193,72 @@ function DataGrid() {
         </div>
 
         {/* TABLE */}
-        <div className='mt-[2rem] pr-[2rem] '>
-          <table id="myTable" className="table-auto w-[100%]">
-            <thead className=''>
-              <tr className='border-b-2 border-[#6b7078]  '>
-                <th className=' text-start text-gray-500 pb-[1rem]'>Name</th>
-                <th className=' text-start text-gray-500 pb-[1rem]'>Brand</th>
-                <th className=' text-start text-gray-500 pb-[1rem]'>Category</th>
-                <th className=' text-start text-gray-500 pb-[1rem]'>Discount (%)</th>
-                <th className=' text-start text-gray-500 pb-[1rem]'>Price</th>
-                <th className=' text-start text-gray-500 pb-[1rem]'>Rating</th>
-                <th className=' text-start text-gray-500 pb-[1rem]'>Stock</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {
-                filterData?.map((x, index) =>
-                  <tr className='' key={index}>
-                    <td className='text-[#0a2351] font-josefinRegular text-[1rem] font-[600] py-[1rem]'>{x.title}</td>
-                    <td className='text-[#0a2351] font-josefinRegular text-[1rem] font-[600] py-[1rem]'>{x.brand}</td>
-                    <td className='text-[#0a2351] font-josefinRegular text-[1rem] font-[600] py-[1rem]'>{x.category}</td>
-                    <td className='w-[18%]'>
-                      <div className='flex justify-start items-center space-x-2'>
-                        <p className='text-gray-500 font-josefinRegular text-[1rem] font-[600]'>{x.discountPercentage}%</p>
-                        <p className='w-[60%] h-[0.6rem] bg-gray-400 rounded-full relative'>
-                          <span style={{ width: `${x.discountPercentage * 2}%` }} className={` h-[100%] bg-pink-500 absolute left-0 rounded-full`}></span>
+        <div className={productSuccess ? 'mt-[2rem] pr-[2rem] min-h-[40vh]' : 'mt-[2rem] pr-[2rem] min-h-[40vh] flex justify-center items-center'}>
+          {
+            productSuccess ? <table id="myTable" className="table-auto w-[100%]">
+              <thead className=''>
+                <tr className='border-b-2 border-[#6b7078]  '>
+                  <th className=' text-start text-gray-500 pb-[1rem]'>Name</th>
+                  <th className=' text-start text-gray-500 pb-[1rem]'>Brand</th>
+                  <th className=' text-start text-gray-500 pb-[1rem]'>Category</th>
+                  <th className=' text-start text-gray-500 pb-[1rem]'>Discount (%)</th>
+                  <th className=' text-start text-gray-500 pb-[1rem]'>Price</th>
+                  <th className=' text-start text-gray-500 pb-[1rem]'>Rating</th>
+                  <th className=' text-start text-gray-500 pb-[1rem]'>Stock</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  filterData?.map((x, index) =>
+                    <tr className='' key={index}>
+                      <td className='text-[#0a2351] font-josefinRegular text-[1rem] font-[600] py-[1rem]'>{x.title}</td>
+                      <td className='text-[#0a2351] font-josefinRegular text-[1rem] font-[600] py-[1rem]'>{x.brand}</td>
+                      <td className='text-[#0a2351] font-josefinRegular text-[1rem] font-[600] py-[1rem]'>{x.category}</td>
+                      <td className='w-[18%]'>
+                        <div className='flex justify-start items-center space-x-2'>
+                          <p className='text-gray-500 font-josefinRegular text-[1rem] font-[600]'>{x.discountPercentage}%</p>
+                          <p className='w-[60%] h-[0.6rem] bg-gray-400 rounded-full relative'>
+                            <span style={{ width: `${x.discountPercentage * 2}%` }} className={` h-[100%] bg-pink-500 absolute left-0 rounded-full`}></span>
+                          </p>
+                        </div>
+                      </td>
+                      <td className='text-[#0a2351] font-josefinRegular text-[1rem] font-[600] py-[1rem]'>₹{x.price}</td>
+                      <td className='text-[#0a2351] font-josefinRegular text-[1rem] font-[600] py-[1rem]'>
+                        <p className='text-pink-500 font-josefinRegular text-[1rem] font-[600]'>{x.rating}</p>
+                        <p className='text-gray-500 font-josefinRegular text-[1rem] font-[600]'>
+                          out of 5
                         </p>
-                      </div>
-                    </td>
-                    <td className='text-[#0a2351] font-josefinRegular text-[1rem] font-[600] py-[1rem]'>₹{x.price}</td>
-                    <td className='text-[#0a2351] font-josefinRegular text-[1rem] font-[600] py-[1rem]'>
-                      <p className='text-pink-500 font-josefinRegular text-[1rem] font-[600]'>{x.rating}</p>
-                      <p className='text-gray-500 font-josefinRegular text-[1rem] font-[600]'>
-                        out of 5
-                      </p>
-                    </td>
-                    <td className='text-[#0a2351] font-josefinRegular text-[1rem] font-[600] py-[1rem]'>{x.stock}</td>
-                    <td className='py-[1rem] flex items-center space-x-2'>
-                      <p className='bg-[#0a2351] hover:text-[#0a2351] hover:shadow-2xl hover:bg-gray-200 transition duration-[0.6s] text-white px-[1rem] py-[0.5rem] rounded-lg text-[1.3rem]'>
-                        <MdModeEditOutline />
-                      </p>
-                      <p className='bg-pink-500 hover:text-pink-500 hover:bg-gray-200 transition duration-[0.6s] text-white px-[1rem] py-[0.5rem] rounded-lg text-[1.3rem]'>
-                        <MdDelete />
-                      </p>
-                    </td>
-                  </tr>
-                )
-              }
+                      </td>
+                      <td className='text-[#0a2351] font-josefinRegular text-[1rem] font-[600] py-[1rem]'>{x.stock}</td>
+                      <td className='py-[1rem] flex items-center space-x-2'>
+                        <p onClick={() => {
+                          setOpen(true);
+                          setEditProductId(x);
+                          const updateData = allProducts.filter((y) => y.id !== x.id)
+                          setAllProducts(updateData)
+                        }} className='bg-[#0a2351] hover:text-[#0a2351] hover:shadow-2xl hover:bg-gray-200 transition duration-[0.6s] text-white px-[1rem] py-[0.5rem] rounded-lg text-[1.3rem]'>
+                          <MdModeEditOutline />
+                        </p>
+                        <p onClick={() => deleteProductHandler(x.id)} className='bg-pink-500 hover:text-pink-500 hover:bg-gray-200 transition duration-[0.6s] text-white px-[1rem] py-[0.5rem] rounded-lg text-[1.3rem]'>
+                          <MdDelete />
+                        </p>
+                        <p onClick={() => viewProductHandler(x.id)} className='bg-green-500 hover:text-green-500 hover:bg-gray-200 transition duration-[0.6s] text-white px-[1rem] py-[0.5rem] rounded-lg text-[1.3rem]'>
+                          <BsEyeFill />
+                        </p>
+                      </td>
+                    </tr>
+                  )
+                }
 
 
 
-            </tbody>
-          </table>
+              </tbody>
+            </table> : <div className="spinner"></div>
+          }
         </div>
+
+
 
         {/* FORM REVEAL ANIMATION */}
         <div className={revealForm ? ' absolute top-0 slideForm bg-white  h-[100%] rounded-lg w-[35%] p-[1rem] shadowBox overflow-y-scroll' : 'absolute top-0 exitSlideForm bg-white  h-[100%] rounded-lg w-[35%] p-[1rem] shadowBox overflow-y-scroll'}>
@@ -251,7 +294,7 @@ function DataGrid() {
               <label htmlFor='discount' className='block font-josefinRegular text-[1rem] font-[600] tracking-wider text-gray-500'>Discount</label>
               <input value={newProductData.discount} id="discount" type='number' placeholder='10' className='outline-none border-2 border-gray-500 rounded-[6px] w-[100%] h-[2.5rem] px-[0.5rem] mt-1' onChange={(e) => setNewProductData((prevState) => ({
                 ...prevState,
-                discount: e.target.value
+                discountPercentage: e.target.value
               }))} />
             </div>
             <div className='mt-6'>
@@ -281,7 +324,7 @@ function DataGrid() {
               title: '',
               brand: '',
               category: '',
-              discount: 0,
+              discountPercentage: 0,
               price: 0,
               stock: 0,
               rating: 0
@@ -290,7 +333,62 @@ function DataGrid() {
           </div>
         </div>
       </div>
-      
+
+      {/* edit product modal */}
+      <Modal
+        open={open}
+        onClose={handleClose}
+        sx={{ border: 'none', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+      >
+
+
+        <Box sx={{ width: { lg: '80vw' }, padding: '2vh 2vw 6vh 2vw', outline: 'none', borderRadius: '6px', backgroundColor: 'white' }}>
+          <Grid sx={{ mt: 4, display: 'flex', justifyContent: 'space-between' }}>
+            <p className='font-josefinRegular text-[1.3rem] font-[600] tracking-wider text-[#0a2351]'>EDIT PRODUCT</p>
+          </Grid>
+          <Grid sx={{ mt: 4, display: 'flex', justifyContent: 'space-between' }}>
+            <TextField onChange={(e) => setEditProductId((prevState) => ({
+              ...prevState,
+              title: e.target.value
+            }))} id="outlined-basic" label="Name" variant="outlined" sx={{ width: "36vw" }} defaultValue={editProductId?.title} />
+            <TextField onChange={(e) => setEditProductId((prevState) => ({
+              ...prevState,
+              brand: e.target.value
+            }))} id="outlined-basic" label="Brand" variant="outlined" sx={{ width: "36vw" }} defaultValue={editProductId?.brand} />
+          </Grid>
+          <Grid sx={{ mt: 4, display: 'flex', justifyContent: 'space-between' }} >
+            <TextField onChange={(e) => setEditProductId((prevState) => ({
+              ...prevState,
+              category: e.target.value
+            }))} id="outlined-basic" label="Category" variant="outlined" sx={{ width: "36vw" }} defaultValue={editProductId?.category} />
+            <TextField onChange={(e) => setEditProductId((prevState) => ({
+              ...prevState,
+              discountPercentage: e.target.value
+            }))} id="outlined-basic" label="Discount" variant="outlined" sx={{ width: "36vw" }} defaultValue={editProductId?.discountPercentage} />
+          </Grid>
+          <Grid sx={{ mt: 4, display: 'flex', justifyContent: 'space-between' }}>
+            <TextField onChange={(e) => setEditProductId((prevState) => ({
+              ...prevState,
+              price: e.target.value
+            }))} id="outlined-basic" label="Price" variant="outlined" sx={{ width: "36vw" }} defaultValue={editProductId?.price} />
+            <TextField onChange={(e) => setEditProductId((prevState) => ({
+              ...prevState,
+              stock: e.target.value
+            }))} id="outlined-basic" label="Stock" variant="outlined" sx={{ width: "36vw" }} defaultValue={editProductId?.stock} />
+          </Grid>
+          <Grid sx={{ mt: 4, display: 'flex', justifyContent: 'space-between' }}>
+            <TextField onChange={(e) => setEditProductId((prevState) => ({
+              ...prevState,
+              rating: e.target.value
+            }))} id="outlined-basic" label="Rating" variant="outlined" sx={{ width: "36vw" }} defaultValue={editProductId?.rating} />
+            <button onClick={updateProductHandler} className='w-[12rem] bg-[#0a2351] font-josefinRegular text-[1.2rem] tracking-wider text-white py-[0.3rem] rounded-lg hover:bg-gray-300 hover:text-[#0a2351] transition duration-[0.6s]'>Save Changes</button>
+
+          </Grid>
+
+        </Box>
+
+      </Modal>
+
       {/* TOAST CONTAINER */}
       <ToastContainer autoClose={2000} />
 
